@@ -1,0 +1,276 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-DM5K75JW4Z"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+      gtag('js', new Date());
+      gtag('config', 'G-DM5K75JW4Z');
+    </script>
+    <title>The 2024 Presidential Election in Pima County</title>
+    <meta name="description" content="About me, and this website">
+    <meta content="width=device-width, initial-scale=1" name="viewport" />
+    <!-- itemprop tags for Google -->
+    <meta itemprop="name" content="The 2024 Presidential Election in Pima County, precinct by precinct">
+    <meta itemprop="description" content="An interactive map of Pima County's 265 voting precincts that shows the 2024 U.S. Presidential Election outcome for each precinct.">
+    <meta itemprop="image" content="https://lukeknipe.com/az_voter_reg_by_ld/og.png">
+    <!-- og tags for Facebook -->
+    <meta property="og:title" content="The 2024 Presidential Election in Pima County, precinct by precinct" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:url" content="https://lukeknipe.com/az_voter_reg_by_ld/">
+    <meta property="og:type" content="website">
+    <meta property="og:description" content="An interactive map of Pima County's 265 voting precincts that shows the 2024 U.S. Presidential Election outcome for each precinct.">
+    <meta property="og:image" content="https://lukeknipe.com/az_voter_reg_by_ld/og.png">
+    <meta property="og:image:alt" content="The 2024 Presidential Election in Pima County, precinct by precinct">
+    <!-- Twitter tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Arizona's legislative districts, by the numbers">
+    <meta name="twitter:description" content="An interactive map of Pima County's 265 voting precincts that shows the 2024 U.S. Presidential Election outcome for each precinct.">
+    <meta name="twitter:image" content="https://lukeknipe.com/az_voter_reg_by_ld/og.png">
+    <link rel="stylesheet" href="style.css">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<link rel="canonical" href="https://lukeknipe.com/az_voter_reg_by_ld" />
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="shortcut icon" type="image/x-icon" href="docs/images/favicon.ico" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.0.3/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.0.3/dist/leaflet.js"></script>
+  </head>
+<body>
+
+<div id='map'></div>
+
+<script type="text/javascript" src="trump_2024_vs_2020.js"></script>
+
+<script type="text/javascript">
+
+// Display basemap
+
+	var map = L.map('map', {zoomControl: false}).setView([32.2, -111], 10.5);
+	new L.Control.Zoom({ position: 'bottomleft' }).addTo(map);
+
+	L.tileLayer('https://api.mapbox.com/styles/v1/lukeknipe/cl5mwyk7000gy15qvyp46e1h2/tiles/256/{z}/{x}/{y}@2x?access_token=pk.eyJ1IjoibHVrZWtuaXBlIiwiYSI6ImNsNW13ajU1azAwZmszZXBxeWV0ZWtlaTgifQ.llc0hOFsg4QzV7tiR1jLdg', {
+		maxZoom: 18,
+		attribution: 'Map data: <a href="https://gisopendata.pima.gov/">Pima County Geospatial Data Portal</a>' +
+			' | Election data: <a href="https://www.pima.gov/394/Elections">Pima County Elections Department</a> | Imagery © <a href="http://mapbox.com">Mapbox</a>',
+	}).addTo(map);
+
+// Control that shows district info on hover
+
+	var info = L.control();
+
+	info.onAdd = function (map) {
+		this._div = L.DomUtil.create('div', 'info');
+		this.update();
+		return this._div;
+	};
+
+	info.update = function (props) {
+
+		this._div.innerHTML = (props ?
+			'<h1>Precinct<br>' + props.PREC_24 + '</h1>'
+			+ '<h2><center>' + trump20(((props.TRUMP_20 / (props.BALLOTS_20))*100).toFixed(2), ((props.TRUMP_24 / (props.BALLOTS_24))*100).toFixed(2), (props.BALLOTS_20))
+
+			+ '<h2><center>' + leanCalc((props.BALLOTS_20), ((props.TRUMP_24 / (props.BALLOTS_24))*100).toFixed(2), ((props.TRUMP_20 / (props.BALLOTS_20))*100).toFixed(2)) + '</center></h2>'
+			+ '<h3><br></center>2020<hr></h3>'
+			+ '<h4>' + props.TRUMP_20 + ' votes for Donald Trump</h4>'
+			+ '<h4><br>' + props.BIDEN_20 + ' votes for Joe Biden</h4>'
+			+ '<h4><br>' + props.BALLOTS_20 + ' ballots total</h4>'
+			+ '<h4><br>' + props.VOTERS_20 + ' registered voters</h4>'
+			+ '<h4><br>' + (((props.BALLOTS_20) / (props.VOTERS_20))*100).toFixed(2) + '% turnout<br></h3>'
+			+ '<h3><br></center>2024<hr></h3>'
+			+ '<h4>' + props.TRUMP_24 + ' votes for Donald Trump</h4>'
+			+ '<h4><br>' + props.HARRIS_24 + ' votes for Kamala Harris</h4>'
+			+ '<h4><br>' + props.BALLOTS_24 + ' ballots total</h4>'
+			+ '<h4><br>' + props.VOTERS_24 + ' registered voters</h4>'
+			+ '<h4><br>' + (((props.BALLOTS_24) / (props.VOTERS_24))*100).toFixed(2) + '% turnout<br></h3>'
+			: 'Hover over a voting precinct');
+	};
+
+	info.addTo(map);
+
+function trump20(margin20, margin24, ballots20) {
+		if (ballots20 == 0) {
+ 	 	return 'Precinct did not<br>exist in 2020</center>';
+		} 
+else {
+return 'Trump 2020 ' + margin20 + '%<br>' + 'Trump 2024 ' + margin24 + '%<br>' ;
+}
+}
+
+	function leanCalc(ballots20, pctRep, pctDem) {
+
+		if (ballots20 == 0) {
+ 	 	return '';
+		} 
+
+		if (pctRep > pctDem) {
+ 	 	return '<span style="color: red;"><center><b>Gain of + ' + (pctRep - pctDem).toFixed(2) + '%</b></center></span>';
+		} 
+else {
+		return '<span style="color: blue;"><center><b>Loss of - ' + (pctDem - pctRep).toFixed(2) + '%</b></center></span>';
+		}
+	}
+
+// Get color for Dem precincts
+
+		function getColorDem(e) {
+			return e > 10 ? '#0000FF' :
+				e > 9  ? '#1A1AFF' :
+				e > 8  ? '#3333FF' :
+				e > 7  ? '#4C4CFF' :
+				e > 6  ? '#6666FF' :
+				e > 5  ? '#8080FF' :
+				e > 4  ? '#9999FF' :
+				e > 3  ? '#B3B3FF' :
+				e > 2  ? '#CCCCFF' :
+							'#E6E6FF';
+	};
+
+// Get color for Rep precincts
+
+	function getColorRep(e) {
+		return 	e > 10  ? '#FF0000' :
+			e > 9  ? '#FF1A1A' :
+			e > 8  ? '#FF3333' :
+			e > 7  ? '#FF4C4C' :
+		  	e > 6  ? '#FF6666' :
+			e > 5  ? '#FF8080' :
+			e > 4  ? '#FF9999' :
+			e > 3  ? '#FFB3B3' :
+			e > 2  ? '#FFCCCC' :
+						'#FFE6E6';
+};
+
+// Style for district map
+
+	function style(feature) {
+
+const demEdge = (feature.properties.TRUMP_20 / (feature.properties.BALLOTS_20)*100) - (feature.properties.TRUMP_24 / (feature.properties.BALLOTS_24)*100);
+const repEdge = (feature.properties.TRUMP_24 / (feature.properties.BALLOTS_24)*100) - (feature.properties.TRUMP_20 / (feature.properties.BALLOTS_20)*100);
+const no2020 = (feature.properties.BALLOTS_20);
+
+if (demEdge > 0) {
+		return {
+			weight: 2,
+			opacity: 1,
+			color: 'white',
+			dashArray: '3',
+			fillOpacity: 0.5,
+			fillColor: getColorDem(demEdge),
+		};
+	}
+
+	if (repEdge > 0) {
+			return {
+				weight: 2,
+				opacity: 1,
+				color: 'white',
+				dashArray: '3',
+				fillOpacity: 0.7,
+				fillColor: getColorRep(repEdge),
+			};
+	}
+
+	if (no2020 == 0) {
+			return {
+				weight: 2,
+				opacity: 1,
+				color: 'white',
+				dashArray: '3',
+				fillOpacity: 0.7,
+				fillColor: '#FFEA00',
+			};
+	}
+
+		else {
+				return {
+					weight: 2,
+					opacity: 1,
+					color: 'white',
+					dashArray: '3',
+					fillOpacity: 0.7,
+					fillColor: '#FFFFFF',
+				};
+			}
+}
+
+function highlightFeature(e) {
+	var layer = e.target;
+
+	layer.setStyle({
+		weight: 5,
+		color: '#666',
+		dashArray: '',
+		fillOpacity: 0.7
+	});
+
+	if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+		layer.bringToFront();
+	}
+
+	info.update(layer.feature.properties);
+}
+
+// Display districts
+
+var geojson;
+
+	function resetHighlight(e) {
+		geojson.resetStyle(e.target);
+		info.update();
+	}
+
+	function zoomToFeature(e) {
+		map.fitBounds(e.target.getBounds());
+	}
+
+	function onEachFeature(feature, layer) {
+		layer.on({
+			mouseover: highlightFeature,
+			mouseout: resetHighlight,
+			click: zoomToFeature
+		});
+	}
+
+	geojson = L.geoJson(electionResults, {
+		style: style,
+		onEachFeature: onEachFeature
+	}).addTo(map);
+
+// Display legend
+
+	var legend = L.control({position: 'bottomright'});
+
+	legend.onAdd = function (map) {
+
+		var div = L.DomUtil.create('div', 'info legend'),
+			grades = [0, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+			labels = ['<b>Trump 2024<br>gain/loss %<br>vs. 2020</b><br>'],
+			from, to;
+
+		for (var i = 0; i < grades.length; i++) {
+			from = grades[i];
+			to = grades[i + 1];
+
+			labels.push(
+				'<i style="background:' + getColorDem(from + 0) + '"></i><i style="background:' + getColorRep(from + 0) + '"></i> ' +
+				from + (to ? '&ndash;' + to : '+'));
+		}
+
+		div.innerHTML = labels.join('<br>');
+		return div;
+	};
+
+	legend.addTo(map);
+
+
+
+</script>
+
+</body>
